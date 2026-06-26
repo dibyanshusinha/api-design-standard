@@ -7,7 +7,7 @@ import YAML from "yaml";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const specPath = process.argv[2] ?? "apispec.yaml";
+const specPath = process.argv[2] ?? "openapi.yaml";
 const extraArgs = process.argv.slice(3);
 
 const sourceRulesetPath = join(__dirname, "..", "spectral.yaml");
