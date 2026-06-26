@@ -1,0 +1,14 @@
+{
+  "name": "@dibyanshusinha/api-design-standard",
+  "version": "1.0.0",
+  "description": "API design standard ruleset and validator",
+  "type": "module",
+  "main": "tools/run-api-design-standard.mjs",
+  "bin": {
+    "api-lint": "./tools/run-api-design-standard.mjs"
+  },
+  "dependencies": {
+    "@stoplight/spectral-cli": "^6.16.0",
+    "yaml": "^2.8.1"
+  }
+}
