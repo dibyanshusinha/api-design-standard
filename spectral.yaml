@@ -1,0 +1,558 @@
+extends:
+  - spectral:oas
+
+formats:
+  - oas3
+
+aliases:
+  Operation:
+    - $.paths[*][get,put,post,delete,options,head,patch,trace]
+  PathName:
+    - $.paths[*]~
+  QueryParameter:
+    - $.paths[*][*].parameters[?(@.in=="query")]
+  PathParameter:
+    - $.paths[*][*].parameters[?(@.in=="path")]
+  ErrorContent:
+    - $.paths[*][*].responses[?(@property.match(/^(4|5)/))].content
+  SuccessContent:
+    - $.paths[*][*].responses[?(@property.match(/^2/))].content
+
+rules:
+  api-info-contact:
+    description: API specifications must identify an owning team or contact.
+    message: Add info.contact with at least a name or email.
+    severity: warn
+    given: $.info
+    then:
+      field: contact
+      function: truthy
+
+  api-info-version:
+    description: API specifications must declare a contract version.
+    message: Add info.version.
+    severity: error
+    given: $.info
+    then:
+      field: version
+      function: truthy
+
+  api-servers-required:
+    description: API specifications must define at least one server.
+    message: Add a servers entry.
+    severity: error
+    given: $
+    then:
+      field: servers
+      function: truthy
+
+  api-security:
+    description: "APIs should declare security globally; public operations may explicitly opt out with security: []."
+    message: Add root-level security, or document why the API is public.
+    severity: warn
+    given: $
+    then:
+      field: security
+      function: truthy
+
+  api-version-in-path:
+    description: Public API paths must include a major version prefix.
+    message: Path must start with a major version such as /v1.
+    severity: error
+    given: "#PathName"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^/v[0-9]+(/|$)"
+
+  path-google-lower-camel:
+    description: Google-style resource paths use lowerCamelCase collection IDs and lowerCamelCase path parameters.
+    message: Use lowerCamelCase path segments and lowerCamelCase path parameters.
+    severity: error
+    given: "#PathName"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(/[a-z][A-Za-z0-9]*|/\\{[a-z][A-Za-z0-9]*\\}|:[a-z][A-Za-z0-9]*)+$"
+
+  path-no-trailing-slash:
+    description: Paths must not end with a trailing slash.
+    message: Remove the trailing slash from the path.
+    severity: error
+    given: "#PathName"
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "/$"
+
+  path-no-file-extensions:
+    description: Paths must not use file extensions for content negotiation.
+    message: Remove file extensions from paths and use HTTP content negotiation.
+    severity: error
+    given: "#PathName"
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "\\.(json|xml|csv|txt)$"
+
+  path-no-action-verbs:
+    description: Resource paths should not include action verbs except as colon-style custom methods.
+    message: Model paths as resources; use a colon-style custom method only when needed.
+    severity: warn
+    given: "#PathName"
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "/(get|list|create|update|patch|delete|remove|fetch|search|find|run|start|stop|cancel|approve|reject)(/|$)"
+
+  path-custom-method-format:
+    description: Custom methods must use a colon suffix with a lowerCamelCase verb.
+    message: "Custom methods should look like /v1/resources/{resourceId}:customVerb."
+    severity: error
+    given: "#PathName"
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: ":[A-Z_\\-]|/.+/.+:[^a-z]"
+
+  operation-operationId:
+    description: Every operation must have a stable operationId.
+    message: Add operationId.
+    severity: error
+    given: "#Operation"
+    then:
+      field: operationId
+      function: truthy
+
+  operationId-lower-camel:
+    description: operationId values must use lowerCamelCase.
+    message: operationId must be lowerCamelCase.
+    severity: error
+    given: "#Operation.operationId"
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  operationId-standard-verb:
+    description: operationId should start with a standard or approved custom verb.
+    message: operationId should start with get, list, create, update, delete, batchGet, search, cancel, run, or undelete.
+    severity: info
+    given: "#Operation.operationId"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(get|list|create|update|delete|batchGet|search|cancel|run|undelete)[A-Z].*"
+
+  operation-summary:
+    description: Every operation must have a concise summary.
+    message: Add a summary.
+    severity: error
+    given: "#Operation"
+    then:
+      field: summary
+      function: truthy
+
+  operation-description:
+    description: Every operation should describe behavior, authorization, and notable side effects.
+    message: Add an operation description.
+    severity: warn
+    given: "#Operation"
+    then:
+      field: description
+      function: truthy
+
+  operation-tags:
+    description: Every operation should be grouped by tags.
+    message: Add at least one operation tag.
+    severity: warn
+    given: "#Operation"
+    then:
+      field: tags
+      function: truthy
+
+  operation-success-response:
+    description: Every operation must define at least one 2xx response.
+    message: Add at least one success response.
+    severity: error
+    given: "#Operation.responses"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          patternProperties:
+            "^2[0-9][0-9]$": {}
+          anyOf:
+            - required: ["200"]
+            - required: ["201"]
+            - required: ["202"]
+            - required: ["204"]
+
+  operation-error-responses:
+    description: Operations should document standard client and server errors.
+    message: Document common error responses, especially 400/401/403/404/409/429/500 where applicable.
+    severity: warn
+    given: "#Operation.responses"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          anyOf:
+            - required: ["400"]
+            - required: ["401"]
+            - required: ["403"]
+            - required: ["404"]
+            - required: ["409"]
+            - required: ["429"]
+            - required: ["500"]
+
+  request-json-content:
+    description: JSON is the default request format.
+    message: Request bodies should use application/json unless an exception is documented.
+    severity: warn
+    given: "#Operation.requestBody.content"
+    then:
+      field: application/json
+      function: truthy
+
+  response-json-or-empty:
+    description: Success responses with content should use JSON.
+    message: Success response content should include application/json unless the endpoint returns a documented non-JSON media type.
+    severity: warn
+    given: "#SuccessContent"
+    then:
+      field: application/json
+      function: truthy
+
+  problem-json-errors:
+    description: Error responses should use RFC 7807 problem details.
+    message: Error responses should include application/problem+json.
+    severity: warn
+    given: "#ErrorContent"
+    then:
+      field: application/problem+json
+      function: truthy
+
+  get-no-request-body:
+    description: GET operations must not define a request body.
+    message: Move inputs for GET operations into path or query parameters.
+    severity: error
+    given: $.paths[*].get
+    then:
+      field: requestBody
+      function: falsy
+
+  delete-no-request-body:
+    description: DELETE operations should not define a request body.
+    message: Move DELETE inputs into path or query parameters, or use a custom method.
+    severity: warn
+    given: $.paths[*].delete
+    then:
+      field: requestBody
+      function: falsy
+
+  prefer-patch-over-put:
+    description: Google-style update methods use PATCH for partial updates.
+    message: Prefer PATCH over PUT unless full replacement semantics are required and documented.
+    severity: warn
+    given: $.paths[*].put
+    then:
+      function: falsy
+
+  custom-methods-use-post:
+    description: Custom methods should use POST.
+    message: Colon-style custom methods should normally be POST operations.
+    severity: warn
+    given:
+      - $.paths[?(@property.match(/:.+$/))].get
+      - $.paths[?(@property.match(/:.+$/))].put
+      - $.paths[?(@property.match(/:.+$/))].patch
+      - $.paths[?(@property.match(/:.+$/))].delete
+    then:
+      function: falsy
+
+  patch-requires-update-mask:
+    description: Partial updates should include an updateMask.
+    message: PATCH operations should include an updateMask query parameter or request field.
+    severity: warn
+    given: $.paths[*].patch.parameters
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          contains:
+            type: object
+            properties:
+              in:
+                const: query
+              name:
+                const: updateMask
+            required: ["in", "name"]
+
+  list-operations-pagination-params:
+    description: Collection GET operations should support token-based pagination.
+    message: Collection GET operations should define pageSize and pageToken query parameters.
+    severity: warn
+    given: $.paths[?(@property.match(/[^}]s$/))].get.parameters
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          allOf:
+            - contains:
+                type: object
+                properties:
+                  in:
+                    const: query
+                  name:
+                    const: pageSize
+                required: ["in", "name"]
+            - contains:
+                type: object
+                properties:
+                  in:
+                    const: query
+                  name:
+                    const: pageToken
+                required: ["in", "name"]
+
+  list-operations-next-page-token:
+    description: List responses should include nextPageToken.
+    message: List operation 200 responses should include a schema with nextPageToken.
+    severity: warn
+    given: $.paths[?(@property.match(/[^}]s$/))].get.responses.200.content.application/json.schema.properties
+    then:
+      field: nextPageToken
+      function: truthy
+
+  query-params-lower-camel:
+    description: Query parameters must use lowerCamelCase.
+    message: Query parameter names must use lowerCamelCase.
+    severity: warn
+    given: "#QueryParameter.name"
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  path-params-camel-case:
+    description: Path parameter names must use lowerCamelCase.
+    message: Path parameter names must use lowerCamelCase.
+    severity: error
+    given: "#PathParameter.name"
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  path-params-required:
+    description: OpenAPI requires path parameters to be required.
+    message: "Path parameters must declare required: true."
+    severity: error
+    given: "#PathParameter"
+    then:
+      field: required
+      function: truthy
+
+  path-param-id-suffix:
+    description: Resource ID path parameters should end with Id.
+    message: Resource ID path parameters should use names like projectId or taskId.
+    severity: info
+    given: "#PathParameter.name"
+    then:
+      function: pattern
+      functionOptions:
+        match: "Id$"
+
+  standard-filter-param:
+    description: Filtering should use the standard filter query parameter.
+    message: Use filter instead of custom filter parameter names.
+    severity: warn
+    given: "#QueryParameter[?(@.name.match(/^(q|query|where|search)$/))].name"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^filter$"
+
+  standard-orderby-param:
+    description: Sorting should use the standard orderBy query parameter.
+    message: Use orderBy instead of custom sort parameter names.
+    severity: warn
+    given: "#QueryParameter[?(@.name.match(/^(sort|sortBy|sort_by|order)$/))].name"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^orderBy$"
+
+  no-offset-pagination:
+    description: Google-style list methods use token pagination.
+    message: Use pageToken instead of offset, page, limit, or cursor.
+    severity: warn
+    given: "#QueryParameter[?(@.name.match(/^(offset|page|limit|cursor)$/))].name"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(pageSize|pageToken)$"
+
+  schema-properties-camel-case:
+    description: Schema property names must use lowerCamelCase.
+    message: Property names must use lowerCamelCase.
+    severity: warn
+    given: $.components.schemas[*].properties[*]~
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  schema-descriptions:
+    description: Schemas should include descriptions.
+    message: Add a schema description.
+    severity: info
+    given: $.components.schemas[*]
+    then:
+      field: description
+      function: truthy
+
+  property-descriptions:
+    description: Public schema properties should include descriptions.
+    message: Add a property description.
+    severity: info
+    given: $.components.schemas[*].properties[*]
+    then:
+      field: description
+      function: truthy
+
+  timestamp-format:
+    description: Timestamp fields must use RFC 3339 date-time format.
+    message: "Timestamp properties should use type: string and format: date-time."
+    severity: warn
+    given: $.components.schemas[*].properties[?(@property.match(/(At|Time|Timestamp)$/))]
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          properties:
+            type:
+              const: string
+            format:
+              const: date-time
+          required: ["type", "format"]
+
+  date-format:
+    description: Date fields must use RFC 3339 date format.
+    message: "Date properties should use type: string and format: date."
+    severity: warn
+    given: $.components.schemas[*].properties[?(@property.match(/Date$/))]
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          properties:
+            type:
+              const: string
+            format:
+              const: date
+          required: ["type", "format"]
+
+  enum-values-upper-snake:
+    description: Enum values should use UPPER_SNAKE_CASE with an unspecified zero value when applicable.
+    message: Enum values should use UPPER_SNAKE_CASE.
+    severity: info
+    given: $.components.schemas[*].properties[*].enum[*]
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[A-Z][A-Z0-9_]*$"
+
+  no-stack-trace-schema:
+    description: Error schemas must not expose stack traces.
+    message: Do not expose stackTrace, trace, exception, or debug fields in API schemas.
+    severity: error
+    given: $.components.schemas[*].properties[*]~
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "^(stackTrace|trace|exception|debug|sql|internalError)$"
+
+  problem-schema-required-fields:
+    description: Problem schemas should include standard problem details fields.
+    message: Problem schema should require type, title, and status.
+    severity: warn
+    given: $.components.schemas.Problem
+    then:
+      field: required
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          contains:
+            const: type
+
+  long-running-operation-202:
+    description: Long-running custom methods should return 202 Accepted.
+    message: Long-running custom methods such as run, cancel, export, import, or generate should document a 202 response.
+    severity: info
+    given: $.paths[?(@property.match(/:(run|cancel|export|import|generate|rebuild)$/))].post.responses
+    then:
+      field: "202"
+      function: truthy
+
+  update-delete-etag-precondition:
+    description: Update and delete operations should document optimistic concurrency where resources support it.
+    message: Consider If-Match or etag handling for update/delete operations.
+    severity: info
+    given:
+      - $.paths[*].patch.parameters
+      - $.paths[*].delete.parameters
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          contains:
+            type: object
+            properties:
+              name:
+                enum: [If-Match, ifMatch, etag]
+            required: ["name"]
+
+  create-custom-idempotency:
+    description: Create and custom operations that may be retried should document idempotency.
+    message: Consider Idempotency-Key or requestId for retried POST operations.
+    severity: info
+    given: $.paths[*].post.parameters
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          contains:
+            type: object
+            properties:
+              name:
+                enum: [Idempotency-Key, requestId]
+            required: ["name"]
+
+  deprecated-operation-description:
+    description: Deprecated operations must explain the replacement or removal plan.
+    message: Deprecated operations must include replacement or removal guidance in description.
+    severity: warn
+    given: "#Operation[?(@.deprecated==true)]"
+    then:
+      field: description
+      function: truthy
+
+  deprecated-property-description:
+    description: Deprecated schema properties must explain the replacement or removal plan.
+    message: Deprecated properties must include replacement or removal guidance in description.
+    severity: warn
+    given: $.components.schemas[*].properties[?(@.deprecated==true)]
+    then:
+      field: description
+      function: truthy

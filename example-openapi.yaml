@@ -1,0 +1,324 @@
+openapi: 3.0.3
+info:
+  title: Projects API
+  version: 1.0.0
+  contact:
+    name: API Platform Team
+servers:
+  - url: https://api.example.com
+security:
+  - bearerAuth: []
+paths:
+  /v1/projects:
+    get:
+      operationId: listProjects
+      summary: List projects
+      description: Lists projects visible to the authenticated caller.
+      tags: [Projects]
+      parameters:
+        - name: pageSize
+          in: query
+          description: Maximum number of projects to return.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: pageToken
+          in: query
+          description: Continuation token from a previous list request.
+          schema:
+            type: string
+        - name: filter
+          in: query
+          description: Filter expression used to select projects.
+          schema:
+            type: string
+        - name: orderBy
+          in: query
+          description: Comma-separated fields used to order projects.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Projects returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListProjectsResponse"
+        "400":
+          $ref: "#/components/responses/Problem400"
+        "401":
+          $ref: "#/components/responses/Problem401"
+        "500":
+          $ref: "#/components/responses/Problem500"
+    post:
+      operationId: createProject
+      summary: Create a project
+      description: Creates a project owned by the authenticated caller.
+      tags: [Projects]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Optional idempotency key for safe retries.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectRequest"
+      responses:
+        "201":
+          description: Project created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/Problem400"
+        "401":
+          $ref: "#/components/responses/Problem401"
+        "500":
+          $ref: "#/components/responses/Problem500"
+  /v1/projects/{projectId}:
+    get:
+      operationId: getProject
+      summary: Get a project
+      description: Gets one project by ID.
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Project ID.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Problem401"
+        "404":
+          $ref: "#/components/responses/Problem404"
+        "500":
+          $ref: "#/components/responses/Problem500"
+    patch:
+      operationId: updateProject
+      summary: Update a project
+      description: Updates selected project fields.
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Project ID.
+          schema:
+            type: string
+        - name: updateMask
+          in: query
+          description: Comma-separated list of fields to update.
+          schema:
+            type: string
+        - name: If-Match
+          in: header
+          description: Optional ETag precondition.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectRequest"
+      responses:
+        "200":
+          description: Project updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/Problem400"
+        "401":
+          $ref: "#/components/responses/Problem401"
+        "404":
+          $ref: "#/components/responses/Problem404"
+        "409":
+          $ref: "#/components/responses/Problem409"
+        "500":
+          $ref: "#/components/responses/Problem500"
+    delete:
+      operationId: deleteProject
+      summary: Delete a project
+      description: Deletes a project. The service may retain recoverable data for a limited period.
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Project ID.
+          schema:
+            type: string
+        - name: If-Match
+          in: header
+          description: Optional ETag precondition.
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Project deleted.
+        "401":
+          $ref: "#/components/responses/Problem401"
+        "404":
+          $ref: "#/components/responses/Problem404"
+        "409":
+          $ref: "#/components/responses/Problem409"
+        "500":
+          $ref: "#/components/responses/Problem500"
+  /v1/projects/{projectId}:undelete:
+    post:
+      operationId: undeleteProject
+      summary: Undelete a project
+      description: Restores a deleted project when it is still recoverable.
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Project ID.
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          description: Optional idempotency key for safe retries.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/Problem400"
+        "401":
+          $ref: "#/components/responses/Problem401"
+        "404":
+          $ref: "#/components/responses/Problem404"
+        "500":
+          $ref: "#/components/responses/Problem500"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Problem400:
+      description: Invalid request.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Problem401:
+      description: Authentication required.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Problem404:
+      description: Resource not found.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Problem409:
+      description: Resource conflict.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Problem500:
+      description: Unexpected error.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    Project:
+      type: object
+      description: Project resource.
+      required: [name, projectId, displayName, createdAt]
+      properties:
+        name:
+          type: string
+          description: Resource name of the project.
+        projectId:
+          type: string
+          description: Stable project ID.
+        displayName:
+          type: string
+          description: Human-readable project name.
+        createdAt:
+          type: string
+          format: date-time
+          description: Time the project was created.
+        etag:
+          type: string
+          description: Entity tag for optimistic concurrency.
+    CreateProjectRequest:
+      type: object
+      description: Request body for creating a project.
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+          description: Human-readable project name.
+    UpdateProjectRequest:
+      type: object
+      description: Request body for updating a project.
+      properties:
+        displayName:
+          type: string
+          description: Human-readable project name.
+    ListProjectsResponse:
+      type: object
+      description: Response body for listing projects.
+      required: [projects]
+      properties:
+        projects:
+          type: array
+          description: Projects returned by the list request.
+          items:
+            $ref: "#/components/schemas/Project"
+        nextPageToken:
+          type: string
+          description: Continuation token when more results are available.
+    Problem:
+      type: object
+      description: Problem details error response.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: Stable problem type URI.
+        title:
+          type: string
+          description: Short problem summary.
+        status:
+          type: integer
+          description: HTTP status code.
+        detail:
+          type: string
+          description: Human-readable problem detail.
+        instance:
+          type: string
+          description: URI identifying this problem instance.
+
