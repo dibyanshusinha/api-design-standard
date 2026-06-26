@@ -1,11 +1,15 @@
 openapi: 3.0.3
 info:
   title: Projects API
+  description: Example OpenAPI contract demonstrating standard project APIs.
   version: 1.0.0
   contact:
     name: API Platform Team
 servers:
   - url: https://api.example.com
+tags:
+  - name: Projects
+    description: Operations related to projects management
 security:
   - bearerAuth: []
 paths:
