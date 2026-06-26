@@ -1,0 +1,31 @@
+name: Validate Standard
+
+on:
+  pull_request:
+    paths:
+      - "spectral.yaml"
+      - "tools/run-api-design-standard.mjs"
+      - "package.json"
+      - "example-openapi.yaml"
+      - ".github/workflows/validate-standard.yml"
+  push:
+    branches:
+      - main
+
+jobs:
+  validate-ruleset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run linter on example spec
+        run: node tools/run-api-design-standard.mjs example-openapi.yaml
